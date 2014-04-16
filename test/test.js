@@ -9,16 +9,15 @@
 'use strict';
 
 var should = require('should'),
-	deckStorage = require('../lib/deckStorage'),
-	request = require('supertest'),
-	uuid = require('uuid');
+	rollerStorage = require('../lib/rollerStorage'),
+	request = require('supertest');
 
-describe('deck storage', function () {
+describe('roller storage', function () {
 
 	var app;
 
 	beforeEach(function (done) {
-		app = deckStorage.start(3002);
+		app = rollerStorage.start(3002);
 		done();
 	});
 
@@ -26,20 +25,20 @@ describe('deck storage', function () {
 		app.close();
 		done();
 	});
-	
+
+	function randomInt(max) {
+		return Math.floor(Math.random() * Math.floor(max)) + 1;
+	}
+
 	describe('get', function (done) {
-		it('gets an existing deck', function (done) {
-			var uniqueDeck = uuid.v4(),
-				uniqueDrawn = uuid.v4(),
-				uniqueDiscarded = uuid.v4(),
-				uniqueRemoved = uuid.v4();
+		it('gets an existing roller', function (done) {
+			var uniqueDice = [randomInt(20), randomInt(20)],
+				uniqueBonus = randomInt(4);
 			// create a deck
 			request(app)
-				.post('/deck')
-				.send({ deck: uniqueDeck,
-					drawn: uniqueDrawn,
-					discarded: uniqueDiscarded,
-					removed: uniqueRemoved })
+				.post('/roller')
+				.send({ dice: uniqueDice,
+					bonus: uniqueBonus })
 				.set('Accept', 'application/json')
 				.set('Content-type', 'application/json')
 				.expect(201)
@@ -56,22 +55,21 @@ describe('deck storage', function () {
 					originalId = res.body.id;
 					// we should be able to get the deck
 					request(app)
-						.get('/deck/' + originalId)
+						.get('/roller/' + originalId)
 						.set('Accept', 'application/json')
 						.set('Content-type', 'application/json')
 						.expect(200)
 						.expect(function (res) {
 							if (res.body.id !== originalId) {
 								return 'id mismatch on get';
-							} else if (!res.body.deck) {
-								return 'no deck data';
-							} else if (res.body.deck !== uniqueDeck ||
-								res.body.drawn !== uniqueDrawn ||
-								res.body.discarded !== uniqueDiscarded ||
-								res.body.removed !== uniqueRemoved
+							} else if (!res.body.dice) {
+								return 'no roller data';
+							} else if (res.body.dice[0] !== uniqueDice[0] ||
+								res.body.dice[1] !== uniqueDice[1] ||
+								res.body.bonus !== uniqueBonus
 								) {
 								console.log('body ', res.body);
-								return 'incorrect deck data';
+								return 'incorrect roller data';
 							}
 						})
 						.end(function(err, res){
@@ -80,19 +78,15 @@ describe('deck storage', function () {
 				});
 		});
 	});
-		
+
 	describe('post', function (done) {
-		it('returns a storage id which can be used to retrieve the deck', function (done) {
-			var uniqueDeck = uuid.v4(),
-				uniqueDrawn = uuid.v4(),
-				uniqueDiscarded = uuid.v4(),
-				uniqueRemoved = uuid.v4();
+		it('returns a storage id which can be used to retrieve the roller', function (done) {
+			var uniqueDice = [randomInt(20), randomInt(20)],
+				uniqueBonus = randomInt(4);
 			request(app)
-				.post('/deck')
-				.send({ deck: uniqueDeck,
-					drawn: uniqueDrawn,
-					discarded: uniqueDiscarded,
-					removed: uniqueRemoved })
+				.post('/roller')
+				.send({ dice: uniqueDice,
+					bonus: uniqueBonus })
 				.set('Accept', 'application/json')
 				.set('Content-type', 'application/json')
 				.expect(201)
@@ -106,15 +100,15 @@ describe('deck storage', function () {
 						return done(err);
 					}
 					request(app)
-						.get('/deck/' + res.body.id)
+						.get('/roller/' + res.body.id)
 						.set('Accept', 'application/json')
 						.expect(200)
 						.expect(function (res) {
-							if (res.body.deck !== uniqueDeck ||
-								res.body.drawn !== uniqueDrawn ||
-								res.body.discarded !== uniqueDiscarded ||
-								res.body.removed !== uniqueRemoved) {
-								return 'get request did not return correct deck';
+							if (res.body.dice[0] !== uniqueDice[0] ||
+								res.body.dice[1] !== uniqueDice[1] ||
+								res.body.bonus !== uniqueBonus
+								) {
+								return 'get request did not return correct roller';
 							}
 						})
 						.end(function(err, res){
@@ -123,20 +117,16 @@ describe('deck storage', function () {
 				});
 		});
 	});
-	
+
 	describe('delete', function (done) {
-		it('removes an existing deck', function (done) {
-			var uniqueDeck = uuid.v4(),
-				uniqueDrawn = uuid.v4(),
-				uniqueDiscarded = uuid.v4(),
-				uniqueRemoved = uuid.v4();
+		it('removes an existing roller', function (done) {
+			var uniqueDice = [randomInt(20), randomInt(20)],
+				uniqueBonus = randomInt(4);
 			// create a deck
 			request(app)
-				.post('/deck')
-				.send({ deck: uniqueDeck,
-					drawn: uniqueDrawn,
-					discarded: uniqueDiscarded,
-					removed: uniqueRemoved })
+				.post('/roller')
+				.send({ dice: uniqueDice,
+					bonus: uniqueBonus })
 				.set('Accept', 'application/json')
 				.set('Content-type', 'application/json')
 				.expect(201)
@@ -153,7 +143,7 @@ describe('deck storage', function () {
 					originalId = res.body.id;
 					// delete the deck
 					request(app)
-						.del('/deck/' + originalId)
+						.del('/roller/' + originalId)
 						.set('Accept', 'application/json')
 						.expect(200)
 						.expect(function (res) {
@@ -167,7 +157,7 @@ describe('deck storage', function () {
 							}
 							// we should not be able to get the deck
 							request(app)
-								.get('/deck/' + originalId)
+								.get('/roller/' + originalId)
 								.set('Accept', 'application/json')
 								.expect(404)
 								.end(function(err, res){
@@ -179,18 +169,14 @@ describe('deck storage', function () {
 	});
 
 	describe('put', function (done) {
-		it('update a deck', function (done) {
-			var uniqueDeck = uuid.v4(),
-				uniqueDrawn = uuid.v4(),
-				uniqueDiscarded = uuid.v4(),
-				uniqueRemoved = uuid.v4();
+		it('update a roller', function (done) {
+			var uniqueDice = [randomInt(20), randomInt(20)],
+				uniqueBonus = randomInt(4);
 			// create a deck with some unique data
 			request(app)
-				.post('/deck')
-				.send({ deck: uniqueDeck,
-					drawn: uniqueDrawn,
-					discarded: uniqueDiscarded,
-					removed: uniqueRemoved })
+				.post('/roller')
+				.send({ dice: uniqueDice,
+					bonus: uniqueBonus })
 				.set('Accept', 'application/json')
 				.set('Content-type', 'application/json')
 				.expect(201)
@@ -200,50 +186,43 @@ describe('deck storage', function () {
 					}
 				})
 				.end(function (err, res) {
-					var uniqueDeck,
-						uniqueDrawn,
-						uniqueDiscarded,
-						uniqueRemoved,
-						deckId;
+					var uniqueDice,
+						uniqueBonus,
+						rollerId;
 					if (err) {
 						return done(err);
 					}
-					uniqueDeck = uuid.v4(),
-					uniqueDrawn = uuid.v4(),
-					uniqueDiscarded = uuid.v4(),
-					uniqueRemoved = uuid.v4();
-					deckId = res.body.id;
+					uniqueDice = [randomInt(20), randomInt(20)];
+					uniqueBonus = randomInt(4);
+					rollerId = res.body.id;
 					// update the deck
 					request(app)
-						.put('/deck')
-						.send({ id: deckId,
-							deck: uniqueDeck,
-							drawn: uniqueDrawn,
-							discarded: uniqueDiscarded,
-							removed: uniqueRemoved })
+						.put('/roller')
+						.send({ id: rollerId,
+							dice: uniqueDice,
+							bonus: uniqueBonus })
 						.set('Accept', 'application/json')
 						.set('Content-type', 'application/json')
 						.expect(200)
 						.expect(function (res) {
-							if (res.body.id !== deckId) {
-								return 'put request did not return correct deck id';
+							if (res.body.id !== rollerId) {
+								return 'put request did not return correct roller id';
 							}
 						})
 						.end(function(err, res){
 							// get the deck and check that it has the new data
 							request(app)
-								.get('/deck/' + deckId)
+								.get('/roller/' + rollerId)
 								.set('Accept', 'application/json')
 								.expect(200)
 								.expect(function (res) {
-									if (res.body.id !== deckId) {
+									if (res.body.id !== rollerId) {
 										return 'wrong id returned on get';
-									} else if (!res.body.deck) {
-										return 'no deck returned on get';
-									} else if (res.body.deck !== uniqueDeck ||
-										res.body.drawn !== uniqueDrawn ||
-										res.body.discarded !== uniqueDiscarded ||
-										res.body.removed !== uniqueRemoved) {
+									} else if (!res.body.dice) {
+										return 'no dice returned on get';
+									} else if (res.body.dice[0] !== uniqueDice[0] ||
+										res.body.dice[1] !== uniqueDice[1] ||
+										res.body.bonus !== uniqueBonus) {
 										return 'deck data was not updated';
 									}
 								})
